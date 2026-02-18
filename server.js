@@ -65,19 +65,33 @@ process.on('SIGINT', async () => {
 // MIDDLEWARE
 // ===================================
 
+// ===================================
+// PROXY CORS POUR NEOCITIES
+// ===================================
+
+// Middleware pour autoriser TOUTES les origines (temporaire pour debug)
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Key');
+    
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    
+    next();
+});
+
 app.use(cors({
-    origin: [
-        "https://rpmn0ise.neocities.org",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080"
-    ],
-    credentials: true,
+    origin: '*', // Accepte TOUTES les origines
+    credentials: false, // Important : mettre à false avec origin: '*'
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key']
 }));
 
 app.use(express.json());
 
+// Logging middleware (utile pour debug)
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
     next();
