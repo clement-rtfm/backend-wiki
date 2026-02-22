@@ -1963,6 +1963,79 @@ app.get("/health", (req, res) => {
     });
 });
 
+
+// ===================================
+// SYSTÈME DE COMPTES ADMIN (routes temporaires)
+// ===================================
+
+app.post("/api/admin-auth/login", async (req, res) => {
+    const { username, password } = req.body;
+    
+    // Temporaire : accepter si password = adminsgpi
+    if (password === 'adminsgpi') {
+        const fakeToken = crypto.randomBytes(32).toString('hex');
+        
+        res.json({
+            success: true,
+            token: fakeToken,
+            admin: {
+                id: 'temp-admin-id',
+                username: username,
+                email: 'admin@sgpi.local',
+                role: 'super_admin',
+                permissions: {
+                    manageCategories: true,
+                    manageLinks: true,
+                    manageUsers: true,
+                    manageAdmins: true,
+                    viewLogs: true,
+                    exportData: true
+                }
+            }
+        });
+    } else {
+        res.status(401).json({ error: "Identifiants incorrects" });
+    }
+});
+
+app.get("/api/admin-auth/verify", async (req, res) => {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+        return res.status(401).json({ error: "Token manquant" });
+    }
+    
+    // Temporaire : accepter n'importe quel token
+    res.json({
+        valid: true,
+        admin: {
+            id: 'temp-admin-id',
+            username: 'admin',
+            email: 'admin@sgpi.local',
+            role: 'super_admin',
+            permissions: {
+                manageCategories: true,
+                manageLinks: true,
+                manageUsers: true,
+                manageAdmins: true,
+                viewLogs: true,
+                exportData: true
+            }
+        }
+    });
+});
+
+app.get("/api/admin-auth/list", async (req, res) => {
+    // Temporaire : retourner une liste vide
+    res.json({
+        success: true,
+        admins: []
+    });
+});
+
+console.log("✅ Routes Panel Admin Unifié chargées");
+
+
 // ===================================
 // 404 HANDLER
 // ===================================
@@ -2259,76 +2332,7 @@ app.get("/api/admin/export/full", async (req, res) => {
     }
 });
 
-// ===================================
-// SYSTÈME DE COMPTES ADMIN (routes temporaires)
-// ===================================
 
-app.post("/api/admin-auth/login", async (req, res) => {
-    const { username, password } = req.body;
-    
-    // Temporaire : accepter si password = adminsgpi
-    if (password === 'adminsgpi') {
-        const fakeToken = crypto.randomBytes(32).toString('hex');
-        
-        res.json({
-            success: true,
-            token: fakeToken,
-            admin: {
-                id: 'temp-admin-id',
-                username: username,
-                email: 'admin@sgpi.local',
-                role: 'super_admin',
-                permissions: {
-                    manageCategories: true,
-                    manageLinks: true,
-                    manageUsers: true,
-                    manageAdmins: true,
-                    viewLogs: true,
-                    exportData: true
-                }
-            }
-        });
-    } else {
-        res.status(401).json({ error: "Identifiants incorrects" });
-    }
-});
-
-app.get("/api/admin-auth/verify", async (req, res) => {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    
-    if (!token) {
-        return res.status(401).json({ error: "Token manquant" });
-    }
-    
-    // Temporaire : accepter n'importe quel token
-    res.json({
-        valid: true,
-        admin: {
-            id: 'temp-admin-id',
-            username: 'admin',
-            email: 'admin@sgpi.local',
-            role: 'super_admin',
-            permissions: {
-                manageCategories: true,
-                manageLinks: true,
-                manageUsers: true,
-                manageAdmins: true,
-                viewLogs: true,
-                exportData: true
-            }
-        }
-    });
-});
-
-app.get("/api/admin-auth/list", async (req, res) => {
-    // Temporaire : retourner une liste vide
-    res.json({
-        success: true,
-        admins: []
-    });
-});
-
-console.log("✅ Routes Panel Admin Unifié chargées");
 
 // ===================================
 // FIN DES ROUTES ADDITIONNELLES
