@@ -1439,13 +1439,26 @@ app.get("/api/admin/categories", requireAdmin, async (req, res) => {
             .sort({ order: 1 })
             .toArray();
         
-        // Ajouter le nombre de sections et liens pour chaque catégorie
+        // Ajouter le nombre de sections/sous-catégories et liens pour chaque catégorie
         for (let cat of categories) {
             const linksCount = await db.collection("links").countDocuments({ 
                 categoryId: cat._id.toString() 
             });
             cat.linksCount = linksCount;
-            cat.sectionsCount = cat.sections ? cat.sections.length : 0;
+            
+            // Compatibilité : sections OU subCategories
+            const subCats = cat.subCategories || cat.sections || [];
+            cat.sectionsCount = subCats.length;
+            cat.subCategoriesCount = subCats.length;
+            
+            // Compter les sous-sous-catégories
+            let subSubCount = 0;
+            for (let subCat of subCats) {
+                if (subCat.subSubCategories) {
+                    subSubCount += subCat.subSubCategories.length;
+                }
+            }
+            cat.subSubCategoriesCount = subSubCount;
         }
         
         res.json({ success: true, categories });
@@ -1457,28 +1470,32 @@ app.get("/api/admin/categories", requireAdmin, async (req, res) => {
 
 // Créer une catégorie
 app.post("/api/admin/categories", requireAdmin, async (req, res) => {
-    const { name, emoji, slug } = req.body;
+    const { name, emoji, slug, subCategories, order } = req.body;
     
     if (!name || !emoji || !slug) {
         return res.status(400).json({ error: "Nom, emoji et slug requis" });
     }
     
     try {
-        // Trouver l'ordre max actuel
-        const maxCategory = await db.collection("categories")
-            .find({})
-            .sort({ order: -1 })
-            .limit(1)
-            .toArray();
-        
-        const newOrder = maxCategory.length > 0 ? maxCategory[0].order + 1 : 0;
+        // Trouver l'ordre max actuel si pas fourni
+        let finalOrder = order;
+        if (finalOrder === undefined || finalOrder === null) {
+            const maxCategory = await db.collection("categories")
+                .find({})
+                .sort({ order: -1 })
+                .limit(1)
+                .toArray();
+            
+            finalOrder = maxCategory.length > 0 ? maxCategory[0].order + 1 : 0;
+        }
         
         const newCategory = {
             name: name,
             emoji: emoji,
             slug: slug,
-            order: newOrder,
-            sections: [],
+            order: finalOrder,
+            sections: [], // Rétrocompatibilité
+            subCategories: subCategories || [], // Nouvelle structure 3 niveaux
             createdAt: new Date()
         };
         
