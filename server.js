@@ -2036,17 +2036,6 @@ app.get("/api/admin-auth/list", async (req, res) => {
 console.log("✅ Routes Panel Admin Unifié chargées");
 
 
-// ===================================
-// 404 HANDLER
-// ===================================
-
-app.use((req, res) => {
-    res.status(404).json({ 
-        error: "Endpoint introuvable",
-        path: req.path 
-    });
-});
-
 
 // ===================================
 // ROUTES ADDITIONNELLES PANEL ADMIN UNIFIÉ
@@ -2339,6 +2328,16 @@ app.get("/api/admin/export/full", async (req, res) => {
 // Placer AVANT app.listen()
 // ===================================
 
+// ===================================
+// 404 HANDLER
+// ===================================
+
+app.use((req, res) => {
+    res.status(404).json({ 
+        error: "Endpoint introuvable",
+        path: req.path 
+    });
+});
 
 // ===================================
 // START SERVER
