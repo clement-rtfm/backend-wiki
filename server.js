@@ -1408,17 +1408,33 @@ app.get("/api/categories/:slug", async (req, res) => {
             .sort({ order: 1 })
             .toArray();
         
-        // Grouper les liens par section
-        const sections = category.sections || [];
-        for (let section of sections) {
-            section.links = links.filter(l => l.sectionId === section.id);
+        // Support nouvelle structure 3 niveaux (subCategories avec subSubCategories)
+        const subCategories = category.subCategories || category.sections || [];
+        
+        for (let subCat of subCategories) {
+            const subSubCategories = subCat.subSubCategories || [];
+            
+            if (subSubCategories.length > 0) {
+                // Structure 3 niveaux : liens attachés aux sous-sous-catégories
+                for (let subSubCat of subSubCategories) {
+                    subSubCat.links = links.filter(l => 
+                        l.subCategoryId === subCat.id && 
+                        l.subSubCategoryId === subSubCat.id
+                    );
+                }
+                subCat.subSubCategories = subSubCategories;
+            } else {
+                // Ancienne structure : liens directs dans la sous-catégorie
+                subCat.links = links.filter(l => l.sectionId === subCat.id);
+            }
         }
         
         res.json({ 
             success: true, 
             category: {
                 ...category,
-                sections: sections
+                sections: subCategories, // Rétrocompatibilité
+                subCategories: subCategories // Nouvelle structure
             }
         });
     } catch (err) {
@@ -2078,23 +2094,25 @@ app.post("/api/admin/quick-add", requireAdmin, async (req, res) => {
     }
 
     try {
-        // On va insérer les liens en utilisant subSubCategoryId comme sectionId
-        const sectionId = subSubCategoryId; 
-
         // Trouver l'ordre max actuel dans cette sous-sous-catégorie
         const maxLink = await db.collection("links")
-            .find({ categoryId, sectionId })
+            .find({ 
+                categoryId, 
+                subCategoryId, 
+                subSubCategoryId 
+            })
             .sort({ order: -1 })
             .limit(1)
             .toArray();
 
         let currentOrder = maxLink.length > 0 ? maxLink[0].order + 1 : 0;
 
-        // Construire les documents à insérer
+        // Construire les documents à insérer avec les 3 niveaux d'IDs
         const linksToInsert = links.map(link => ({
             categoryId,
-            sectionId,              // Utilisation du sous-sous-catégorie
-            subCategoryId,          // Stockage (facultatif) pour savoir le niveau
+            subCategoryId,          // Niveau 2
+            subSubCategoryId,       // Niveau 3
+            sectionId: subSubCategoryId, // Rétrocompatibilité (pour ancienne structure)
             name: link.name,
             url: link.url,
             description: link.description || "",
