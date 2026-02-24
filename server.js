@@ -1443,6 +1443,80 @@ app.get("/api/categories/:slug", async (req, res) => {
     }
 });
 
+// Export catégorie en Markdown
+app.get("/api/export/category/:slug", async (req, res) => {
+    const { slug } = req.params;
+    
+    try {
+        const category = await db.collection("categories").findOne({ slug: slug });
+        
+        if (!category) {
+            return res.status(404).json({ error: "Catégorie introuvable" });
+        }
+        
+        // Récupérer tous les liens
+        const links = await db.collection("links")
+            .find({ categoryId: category._id.toString() })
+            .sort({ order: 1 })
+            .toArray();
+        
+        // Générer le markdown
+        let markdown = `# ${category.emoji} ${category.name}\n\n`;
+        
+        const subCategories = category.subCategories || category.sections || [];
+        
+        for (const subCat of subCategories) {
+            markdown += `## ${subCat.name}\n\n`;
+            
+            const subSubCategories = subCat.subSubCategories || [];
+            
+            if (subSubCategories.length > 0) {
+                // Structure 3 niveaux
+                for (const subSubCat of subSubCategories) {
+                    markdown += `### ${subSubCat.name}\n\n`;
+                    
+                    const subSubLinks = links.filter(l => 
+                        l.subCategoryId === subCat.id && 
+                        l.subSubCategoryId === subSubCat.id
+                    );
+                    
+                    if (subSubLinks.length > 0) {
+                        subSubLinks.forEach(link => {
+                            markdown += `- [${link.name}](${link.url})`;
+                            if (link.badge) markdown += ` ${link.badge}`;
+                            if (link.description) markdown += ` - ${link.description}`;
+                            markdown += `\n`;
+                        });
+                        markdown += `\n`;
+                    }
+                }
+            } else {
+                // Ancienne structure
+                const subCatLinks = links.filter(l => l.sectionId === subCat.id);
+                
+                if (subCatLinks.length > 0) {
+                    subCatLinks.forEach(link => {
+                        markdown += `- [${link.name}](${link.url})`;
+                        if (link.badge) markdown += ` ${link.badge}`;
+                        if (link.description) markdown += ` - ${link.description}`;
+                        markdown += `\n`;
+                    });
+                    markdown += `\n`;
+                }
+            }
+        }
+        
+        // Envoyer le fichier
+        res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${slug}.md"`);
+        res.send(markdown);
+        
+    } catch (err) {
+        console.error('❌ Erreur export:', err);
+        res.status(500).json({ error: "Erreur serveur" });
+    }
+});
+
 // ===================================
 // PANEL ADMIN - CATÉGORIES
 // ===================================
