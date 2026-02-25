@@ -2132,6 +2132,29 @@ app.get("/api/admin-auth/verify", async (req, res) => {
     });
 });
 
+// Route batch-delete pour suppression en masse des liens
+app.post("/api/admin/links/batch-delete", requireAdmin, async (req, res) => {
+    const { categoryId, subCategoryId, subSubCategoryId } = req.body;
+    
+    try {
+        const filter = { categoryId };
+        if (subCategoryId) filter.subCategoryId = subCategoryId;
+        if (subSubCategoryId) filter.subSubCategoryId = subSubCategoryId;
+        
+        const result = await db.collection("links").deleteMany(filter);
+        
+        console.log(`✅ ${result.deletedCount} liens supprimés`);
+        
+        res.json({ 
+            success: true, 
+            deletedCount: result.deletedCount 
+        });
+    } catch (err) {
+        console.error('❌ Erreur batch-delete:', err);
+        res.status(500).json({ error: "Erreur serveur" });
+    }
+});
+
 app.get("/api/admin-auth/list", async (req, res) => {
     // Temporaire : retourner une liste vide
     res.json({
@@ -2234,14 +2257,24 @@ app.get("/api/admin/stats/dashboard", async (req, res) => {
     try {
         const stats = {
             categories: await db.collection("categories").countDocuments(),
-            sections: 0,
+            subCategories: 0,
+            subSubCategories: 0,
             links: await db.collection("links").countDocuments(),
             users: await db.collection("users").countDocuments()
         };
         
-        // Compter les sections
+        // Compter les sous-catégories et sous-sous-catégories
         const categories = await db.collection("categories").find({}).toArray();
-        stats.sections = categories.reduce((sum, cat) => sum + (cat.sections?.length || 0), 0);
+        
+        categories.forEach(cat => {
+            const subCats = cat.subCategories || cat.sections || [];
+            stats.subCategories += subCats.length;
+            
+            subCats.forEach(subCat => {
+                const subSubCats = subCat.subSubCategories || [];
+                stats.subSubCategories += subSubCats.length;
+            });
+        });
         
         // Activité récente
         const recentActivity = await db.collection("admin_logs")
@@ -2260,7 +2293,15 @@ app.get("/api/admin/stats/dashboard", async (req, res) => {
             cat.linksCount = await db.collection("links").countDocuments({ 
                 categoryId: cat._id.toString() 
             });
-            cat.sectionsCount = cat.sections?.length || 0;
+            
+            const subCats = cat.subCategories || cat.sections || [];
+            cat.subCategoriesCount = subCats.length;
+            
+            let subSubCount = 0;
+            subCats.forEach(subCat => {
+                subSubCount += (subCat.subSubCategories || []).length;
+            });
+            cat.subSubCategoriesCount = subSubCount;
         }
         
         const topCategories = allCategories
