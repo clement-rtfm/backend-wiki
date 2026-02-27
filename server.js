@@ -1420,24 +1420,39 @@ app.get("/api/categories/:slug", async (req, res) => {
             .sort({ order: 1 })
             .toArray();
         
-        // Support nouvelle structure 3 niveaux (subCategories avec subSubCategories)
+        console.log(`📊 Catégorie ${slug}: ${links.length} liens trouvés en BDD`);
+        
+        // Support nouvelle structure 3 niveaux
         const subCategories = category.subCategories || category.sections || [];
         
         for (let subCat of subCategories) {
             const subSubCategories = subCat.subSubCategories || [];
             
+            // Liens généraux de la sous-catégorie (sans subSubCategoryId)
+            subCat.links = links.filter(l => 
+                l.subCategoryId === subCat.id && 
+                !l.subSubCategoryId
+            );
+            
+            console.log(`  📂 ${subCat.name}: ${subCat.links.length} liens généraux`);
+            
             if (subSubCategories.length > 0) {
-                // Structure 3 niveaux : liens attachés aux sous-sous-catégories
+                // Liens spécifiques dans les sous-sous-catégories
                 for (let subSubCat of subSubCategories) {
                     subSubCat.links = links.filter(l => 
                         l.subCategoryId === subCat.id && 
                         l.subSubCategoryId === subSubCat.id
                     );
+                    
+                    console.log(`    📄 ${subSubCat.name}: ${subSubCat.links.length} liens spécifiques`);
                 }
                 subCat.subSubCategories = subSubCategories;
-            } else {
-                // Ancienne structure : liens directs dans la sous-catégorie
+            }
+            
+            // Fallback : ancienne structure (sectionId)
+            if (subCat.links.length === 0 && subSubCategories.length === 0) {
                 subCat.links = links.filter(l => l.sectionId === subCat.id);
+                console.log(`  📂 ${subCat.name}: ${subCat.links.length} liens (ancienne structure)`);
             }
         }
         
